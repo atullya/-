@@ -1,112 +1,249 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useCallback, useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  RefreshControl,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
+import { Notebook } from '@/types';
+import { getNotebooks } from '@/utils/storage';
+import { formatCurrency, totalAmount } from '@/utils/format';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+export default function SummaryScreen() {
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-export default function TabTwoScreen() {
+  const load = useCallback(() => {
+    const data = getNotebooks();
+    setNotebooks(data);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    load();
+    setRefreshing(false);
+  };
+
+  const grandTotal = notebooks.reduce((sum, nb) => sum + totalAmount(nb.entries), 0);
+
+  // For bar chart scaling
+  const maxAbsValue = Math.max(
+    ...notebooks.map((nb) => Math.abs(totalAmount(nb.entries))),
+    1
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Summary</Text>
+        <Text style={styles.headerSubtitle}>All notebooks combined</Text>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#000" />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Grand Total */}
+        <View style={styles.grandTotalCard}>
+          <Text style={styles.grandTotalLabel}>Grand Total</Text>
+          <Text style={[styles.grandTotalValue, grandTotal < 0 && styles.negative]}>
+            {formatCurrency(grandTotal)}
+          </Text>
+        </View>
+
+        {/* Breakdown */}
+        {notebooks.length > 0 && (
+          <View style={styles.breakdownSection}>
+            <Text style={styles.sectionTitle}>Breakdown</Text>
+            {notebooks.map((nb) => {
+              const nbTotal = totalAmount(nb.entries);
+              const barPercent =
+                maxAbsValue > 0
+                  ? (Math.abs(nbTotal) / maxAbsValue) * 100
+                  : 0;
+              return (
+                <View key={nb.id} style={styles.breakdownRow}>
+                  <View style={styles.breakdownLeft}>
+                    <Text style={styles.breakdownName} numberOfLines={1}>
+                      {nb.name}
+                    </Text>
+                    <Text style={styles.breakdownCount}>
+                      {nb.entries.length} {nb.entries.length === 1 ? 'entry' : 'entries'}
+                    </Text>
+                    {/* Horizontal bar */}
+                    <View style={styles.barTrack}>
+                      <View
+                        style={[
+                          styles.barFill,
+                          { width: `${Math.max(barPercent, nbTotal === 0 ? 0 : 2)}%` },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                  <Text
+                    style={[
+                      styles.breakdownAmount,
+                      nbTotal < 0 && styles.negative,
+                    ]}
+                  >
+                    {formatCurrency(nbTotal)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {notebooks.length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>📊</Text>
+            <Text style={styles.emptyTitle}>No data yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Create notebooks and add entries to see your summary
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
   },
-  titleContainer: {
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#000',
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: '#666',
+    marginTop: 2,
+    fontWeight: '500',
+    letterSpacing: 0.2,
+  },
+  scroll: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+  },
+  grandTotalCard: {
+    backgroundColor: '#000',
+    borderRadius: 14,
+    padding: 24,
+    marginBottom: 24,
+  },
+  grandTotalLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  grandTotalValue: {
+    fontSize: 38,
+    fontWeight: '800',
+    color: '#FFF',
+    letterSpacing: -1,
+  },
+  negative: {},
+  breakdownSection: {
+    backgroundColor: '#FFF',
+    borderRadius: 14,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#EEEEEE',
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 16,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  breakdownRow: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  breakdownLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  barTrack: {
+    height: 4,
+    backgroundColor: '#EEEEEE',
+    borderRadius: 2,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: 4,
+    backgroundColor: '#000',
+    borderRadius: 2,
+    minWidth: 0,
+  },
+  breakdownName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  breakdownCount: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
+  },
+  breakdownAmount: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#000',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingTop: 80,
+  },
+  emptyEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
