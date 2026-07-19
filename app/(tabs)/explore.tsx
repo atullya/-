@@ -16,8 +16,8 @@ export default function SummaryScreen() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(() => {
-    const data = getNotebooks();
+  const load = useCallback(async () => {
+    const data = await getNotebooks();
     setNotebooks(data);
   }, []);
 
@@ -27,9 +27,9 @@ export default function SummaryScreen() {
     }, [load])
   );
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    load();
+    await load();
     setRefreshing(false);
   };
 

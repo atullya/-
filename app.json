@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "Ledger",
-    "slug": "ledger",
+    "slug": "my-todo-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ledger",
+    "scheme": "my-todo-app",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -23,7 +23,7 @@
       "package": "com.atulf.mytodoapp"
     },
     "web": {
-      "output": "static",
+      "output": "server",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [

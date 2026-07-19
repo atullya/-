@@ -33,8 +33,8 @@ export default function NotebooksScreen() {
   const [renameTarget, setRenameTarget] = useState<Notebook | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
-  const loadNotebooks = useCallback(() => {
-    const data = getNotebooks();
+  const loadNotebooks = useCallback(async () => {
+    const data = await getNotebooks();
     setNotebooks(data);
     setLoading(false);
   }, []);
@@ -45,23 +45,23 @@ export default function NotebooksScreen() {
     }, [loadNotebooks])
   );
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    loadNotebooks();
+    await loadNotebooks();
     setRefreshing(false);
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newName.trim()) return;
-    createNotebook(newName.trim());
+    await createNotebook(newName.trim());
     setNewName('');
     setModalVisible(false);
     loadNotebooks();
   };
 
-  const handleRename = () => {
+  const handleRename = async () => {
     if (!renameTarget || !renameValue.trim()) return;
-    renameNotebook(renameTarget.id, renameValue.trim());
+    await renameNotebook(renameTarget.id, renameValue.trim());
     setRenameVisible(false);
     setRenameTarget(null);
     setRenameValue('');
@@ -77,8 +77,8 @@ export default function NotebooksScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            deleteNotebook(notebook.id);
+          onPress: async () => {
+            await deleteNotebook(notebook.id);
             loadNotebooks();
           },
         },

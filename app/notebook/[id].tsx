@@ -63,16 +63,16 @@ export default function NotebookDetailScreen() {
     }
   };
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     if (!id) return;
-    const data = getNotebook(id);
+    const data = await getNotebook(id);
     setNotebook(data ?? null);
     setLoading(false);
   }, [id]);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    load();
+    await load();
     setRefreshing(false);
   };
 

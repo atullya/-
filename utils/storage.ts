@@ -1,118 +1,126 @@
-import { Platform } from 'react-native';
-import { StorageData, Notebook, Entry } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { Notebook, Entry } from '@/types';
 
-// On web, use localStorage as fallback since expo-file-system lacks web support.
-// On native, use expo-file-system.
-let readData: () => StorageData;
-let writeData: (data: StorageData) => void;
-
-if (Platform.OS === 'web') {
-  const WEB_KEY = 'ledger_data';
-  readData = () => {
-    try {
-      const raw = localStorage.getItem(WEB_KEY);
-      return raw ? (JSON.parse(raw) as StorageData) : { notebooks: [] };
-    } catch {
-      return { notebooks: [] };
-    }
-  };
-  writeData = (data: StorageData) => {
-    localStorage.setItem(WEB_KEY, JSON.stringify(data));
-  };
-} else {
-  const { File, Paths } = require('expo-file-system');
-  const storageFile = new File(Paths.document, 'ledger_data.json');
-
-  readData = () => {
-    if (!storageFile.exists) return { notebooks: [] };
-    try {
-      return JSON.parse(storageFile.textSync()) as StorageData;
-    } catch {
-      return { notebooks: [] };
-    }
-  };
-  writeData = (data: StorageData) => {
-    if (!storageFile.exists) {
-      storageFile.create();
-    }
-    storageFile.write(JSON.stringify(data));
+/** Map a Supabase DB row (snake_case) to our Notebook type (camelCase). */
+function mapNotebook(row: any): Notebook {
+  return {
+    id: row.id,
+    name: row.name,
+    createdAt: row.created_at,
+    entries: (row.entries ?? []).map(mapEntry),
   };
 }
 
-// ─── Notebook CRUD ───────────────────────────────────────────
-
-export function getNotebooks(): Notebook[] {
-  return readData().notebooks;
-}
-
-export function getNotebook(id: string): Notebook | undefined {
-  return readData().notebooks.find((n) => n.id === id);
-}
-
-export function createNotebook(name: string): Notebook {
-  const data = readData();
-  const notebook: Notebook = {
-    id: Date.now().toString() + Math.random().toString(36).slice(2, 9),
-    name: name.trim(),
-    createdAt: new Date().toISOString(),
-    entries: [],
+/** Map a Supabase DB row (snake_case) to our Entry type (camelCase). */
+function mapEntry(row: any): Entry {
+  return {
+    id: row.id,
+    date: row.date,
+    amount: row.amount,
+    remarks: row.remarks,
   };
-  data.notebooks.unshift(notebook);
-  writeData(data);
-  return notebook;
 }
 
-export function renameNotebook(id: string, newName: string): void {
-  const data = readData();
-  const nb = data.notebooks.find((n) => n.id === id);
-  if (nb) {
-    nb.name = newName.trim();
-    writeData(data);
+// ─── Notebook CRUD ───────────────────────────────────────────────
+
+export async function getNotebooks(): Promise<Notebook[]> {
+  const { data, error } = await supabase
+    .from('notebooks')
+    .select('*, entries(*)')
+    .order('created_at', { ascending: false })
+    .order('date', { foreignTable: 'entries', ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map(mapNotebook);
+}
+
+export async function getNotebook(id: string): Promise<Notebook | undefined> {
+  const { data, error } = await supabase
+    .from('notebooks')
+    .select('*, entries(*)')
+    .eq('id', id)
+    .order('date', { foreignTable: 'entries', ascending: false })
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return undefined; // not found
+    throw error;
   }
+  return mapNotebook(data);
 }
 
-export function deleteNotebook(id: string): void {
-  const data = readData();
-  data.notebooks = data.notebooks.filter((n) => n.id !== id);
-  writeData(data);
+export async function createNotebook(name: string): Promise<Notebook> {
+  const { data, error } = await supabase
+    .from('notebooks')
+    .insert({ name: name.trim() })
+    .select('*, entries(*)')
+    .single();
+
+  if (error) throw error;
+  return mapNotebook(data);
 }
 
-// ─── Entry CRUD ──────────────────────────────────────────────
+export async function renameNotebook(id: string, newName: string): Promise<void> {
+  const { error } = await supabase
+    .from('notebooks')
+    .update({ name: newName.trim() })
+    .eq('id', id);
 
-export function addEntry(
+  if (error) throw error;
+}
+
+export async function deleteNotebook(id: string): Promise<void> {
+  // Entries are cascade-deleted by the DB foreign key
+  const { error } = await supabase.from('notebooks').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ─── Entry CRUD ─────────────────────────────────────────────────
+
+export async function addEntry(
   notebookId: string,
   entry: Omit<Entry, 'id'>
-): Entry {
-  const data = readData();
-  const nb = data.notebooks.find((n) => n.id === notebookId);
-  if (!nb) throw new Error('Notebook not found');
-  const newEntry: Entry = {
-    id: Date.now().toString() + Math.random().toString(36).slice(2, 9),
-    ...entry,
-  };
-  nb.entries.unshift(newEntry);
-  writeData(data);
-  return newEntry;
+): Promise<Entry> {
+  const { data, error } = await supabase
+    .from('entries')
+    .insert({
+      notebook_id: notebookId,
+      date: entry.date,
+      amount: entry.amount,
+      remarks: entry.remarks.trim(),
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapEntry(data);
 }
 
-export function updateEntry(
+export async function updateEntry(
   notebookId: string,
   entryId: string,
   updates: Partial<Omit<Entry, 'id'>>
-): void {
-  const data = readData();
-  const nb = data.notebooks.find((n) => n.id === notebookId);
-  if (!nb) throw new Error('Notebook not found');
-  const entry = nb.entries.find((e) => e.id === entryId);
-  if (!entry) throw new Error('Entry not found');
-  Object.assign(entry, updates);
-  writeData(data);
+): Promise<void> {
+  const dbUpdates: Record<string, any> = {};
+  if (updates.date !== undefined) dbUpdates.date = updates.date;
+  if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+  if (updates.remarks !== undefined) dbUpdates.remarks = updates.remarks.trim();
+
+  const { error } = await supabase
+    .from('entries')
+    .update(dbUpdates)
+    .eq('id', entryId)
+    .eq('notebook_id', notebookId);
+
+  if (error) throw error;
 }
 
-export function deleteEntry(notebookId: string, entryId: string): void {
-  const data = readData();
-  const nb = data.notebooks.find((n) => n.id === notebookId);
-  if (!nb) throw new Error('Notebook not found');
-  nb.entries = nb.entries.filter((e) => e.id !== entryId);
-  writeData(data);
+export async function deleteEntry(notebookId: string, entryId: string): Promise<void> {
+  const { error } = await supabase
+    .from('entries')
+    .delete()
+    .eq('id', entryId)
+    .eq('notebook_id', notebookId);
+
+  if (error) throw error;
 }
