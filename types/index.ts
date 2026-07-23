@@ -1,7 +1,11 @@
 export type Entry = {
   id: string;
-  date: string; // ISO date string (YYYY-MM-DD)
+  /** YYYY-MM-DD in the calendar identified by dateCalendar. */
+  date: string;
+  dateCalendar: 'ad' | 'bs';
   amount: number;
+  /** Odometer reading in kilometres at the time of this fill-up. */
+  meterReading: number | null;
   remarks: string;
 };
 
@@ -10,6 +14,14 @@ export type Notebook = {
   name: string;
   createdAt: string; // ISO date string
   entries: Entry[];
+};
+
+export type ServiceRecord = {
+  id: string;
+  date: string;
+  price: number;
+  meterReading: number | null;
+  remarks: string;
 };
 
 export type StorageData = {

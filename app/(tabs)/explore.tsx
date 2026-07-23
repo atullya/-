@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Notebook } from '@/types';
 import { getNotebooks } from '@/utils/storage';
-import { formatCurrency, totalAmount } from '@/utils/format';
+import { formatCurrency, getDistanceStats, totalAmount } from '@/utils/format';
 
 export default function SummaryScreen() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
@@ -34,6 +34,7 @@ export default function SummaryScreen() {
   };
 
   const grandTotal = notebooks.reduce((sum, nb) => sum + totalAmount(nb.entries), 0);
+  const distanceStats = getDistanceStats(notebooks.flatMap((notebook) => notebook.entries));
 
   // For bar chart scaling
   const maxAbsValue = Math.max(
@@ -45,7 +46,7 @@ export default function SummaryScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Summary</Text>
-        <Text style={styles.headerSubtitle}>All notebooks combined</Text>
+        <Text style={styles.headerSubtitle}>Petrol expense and distance</Text>
       </View>
 
       <ScrollView
@@ -61,6 +62,16 @@ export default function SummaryScreen() {
           <Text style={[styles.grandTotalValue, grandTotal < 0 && styles.negative]}>
             {formatCurrency(grandTotal)}
           </Text>
+          <View style={styles.distanceRow}>
+            <View>
+              <Text style={styles.distanceLabel}>Current meter</Text>
+              <Text style={styles.distanceValue}>{distanceStats.currentMeter === null ? '—' : `${distanceStats.currentMeter.toLocaleString('en-IN')} km`}</Text>
+            </View>
+            <View style={styles.distanceRight}>
+              <Text style={styles.distanceLabel}>Avg. between fills</Text>
+              <Text style={styles.distanceValue}>{distanceStats.averageDistance === null ? '—' : `${distanceStats.averageDistance.toFixed(1)} km`}</Text>
+            </View>
+          </View>
         </View>
 
         {/* Breakdown */}
@@ -69,6 +80,7 @@ export default function SummaryScreen() {
             <Text style={styles.sectionTitle}>Breakdown</Text>
             {notebooks.map((nb) => {
               const nbTotal = totalAmount(nb.entries);
+              const notebookDistance = getDistanceStats(nb.entries);
               const barPercent =
                 maxAbsValue > 0
                   ? (Math.abs(nbTotal) / maxAbsValue) * 100
@@ -81,6 +93,11 @@ export default function SummaryScreen() {
                     </Text>
                     <Text style={styles.breakdownCount}>
                       {nb.entries.length} {nb.entries.length === 1 ? 'entry' : 'entries'}
+                    </Text>
+                    <Text style={styles.breakdownDistance}>
+                      {notebookDistance.averageDistance === null
+                        ? 'Meter average unavailable'
+                        : `Average: ${notebookDistance.averageDistance.toFixed(1)} km between fills`}
                     </Text>
                     {/* Horizontal bar */}
                     <View style={styles.barTrack}>
@@ -167,6 +184,29 @@ const styles = StyleSheet.create({
     color: '#FFF',
     letterSpacing: -1,
   },
+  distanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  distanceRight: {
+    alignItems: 'flex-end',
+  },
+  distanceLabel: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  distanceValue: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 4,
+  },
   negative: {},
   breakdownSection: {
     backgroundColor: '#FFF',
@@ -217,6 +257,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 2,
+  },
+  breakdownDistance: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 3,
   },
   breakdownAmount: {
     fontSize: 17,

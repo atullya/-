@@ -29,7 +29,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Notebooks',
+          title: 'Years',
           tabBarIcon: ({ focused }) => <TabIcon name="index" focused={focused} />,
         }}
       />
@@ -38,6 +38,13 @@ export default function TabLayout() {
         options={{
           title: 'Summary',
           tabBarIcon: ({ focused }) => <TabIcon name="explore" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="servicing"
+        options={{
+          title: 'Servicing',
+          tabBarIcon: ({ focused }) => <TabIcon name="servicing" focused={focused} />,
         }}
       />
     </Tabs>

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { Notebook, Entry } from '@/types';
+import { Notebook, Entry, ServiceRecord } from '@/types';
 
 /** Map a Supabase DB row (snake_case) to our Notebook type (camelCase). */
 function mapNotebook(row: any): Notebook {
@@ -16,9 +16,15 @@ function mapEntry(row: any): Entry {
   return {
     id: row.id,
     date: row.date,
+    dateCalendar: row.date_calendar ?? 'ad',
     amount: row.amount,
+    meterReading: row.meter_reading ?? null,
     remarks: row.remarks,
   };
+}
+
+function mapService(row: any): ServiceRecord {
+  return { id: row.id, date: row.date, price: row.price, meterReading: row.meter_reading ?? null, remarks: row.remarks };
 }
 
 // ─── Notebook CRUD ───────────────────────────────────────────────
@@ -86,7 +92,9 @@ export async function addEntry(
     .insert({
       notebook_id: notebookId,
       date: entry.date,
+      date_calendar: entry.dateCalendar,
       amount: entry.amount,
+      meter_reading: entry.meterReading,
       remarks: entry.remarks.trim(),
     })
     .select()
@@ -103,7 +111,9 @@ export async function updateEntry(
 ): Promise<void> {
   const dbUpdates: Record<string, any> = {};
   if (updates.date !== undefined) dbUpdates.date = updates.date;
+  if (updates.dateCalendar !== undefined) dbUpdates.date_calendar = updates.dateCalendar;
   if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+  if (updates.meterReading !== undefined) dbUpdates.meter_reading = updates.meterReading;
   if (updates.remarks !== undefined) dbUpdates.remarks = updates.remarks.trim();
 
   const { error } = await supabase
@@ -122,5 +132,31 @@ export async function deleteEntry(notebookId: string, entryId: string): Promise<
     .eq('id', entryId)
     .eq('notebook_id', notebookId);
 
+  if (error) throw error;
+}
+
+export async function getServices(): Promise<ServiceRecord[]> {
+  const { data, error } = await supabase.from('services').select('*').order('date', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(mapService);
+}
+
+export async function addService(service: Omit<ServiceRecord, 'id'>): Promise<ServiceRecord> {
+  const { data, error } = await supabase.from('services').insert({
+    date: service.date, price: service.price, meter_reading: service.meterReading, remarks: service.remarks.trim(),
+  }).select().single();
+  if (error) throw error;
+  return mapService(data);
+}
+
+export async function updateService(id: string, service: Omit<ServiceRecord, 'id'>): Promise<void> {
+  const { error } = await supabase.from('services').update({
+    date: service.date, price: service.price, meter_reading: service.meterReading, remarks: service.remarks.trim(),
+  }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteService(id: string): Promise<void> {
+  const { error } = await supabase.from('services').delete().eq('id', id);
   if (error) throw error;
 }

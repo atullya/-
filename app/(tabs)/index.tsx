@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Notebook } from '@/types';
 import { getNotebooks, createNotebook, renameNotebook, deleteNotebook } from '@/utils/storage';
-import { formatCurrency, totalAmount } from '@/utils/format';
+import { formatCurrency, getTodayBsDate, totalAmount } from '@/utils/format';
 
 export default function NotebooksScreen() {
   const router = useRouter();
@@ -53,6 +53,11 @@ export default function NotebooksScreen() {
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
+    const year = Number(newName.trim());
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      Alert.alert('Enter a Nepali year', 'Use a Bikram Sambat year from 2000 to 2100, for example 2083.');
+      return;
+    }
     await createNotebook(newName.trim());
     setNewName('');
     setModalVisible(false);
@@ -123,7 +128,7 @@ export default function NotebooksScreen() {
       >
         <TouchableOpacity
           style={styles.card}
-          onPress={() => router.push(`/notebook/${item.id}` as any)}
+          onPress={() => router.push(`/year/${item.id}` as any)}
           onLongPress={() => handleLongPress(item)}
           activeOpacity={0.7}
         >
@@ -146,9 +151,9 @@ export default function NotebooksScreen() {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyEmoji}>📓</Text>
-      <Text style={styles.emptyTitle}>No notebooks yet</Text>
+      <Text style={styles.emptyTitle}>No years yet</Text>
       <Text style={styles.emptySubtitle}>
-        Tap the + button below to create your first notebook
+        Tap the + button below to create your first Nepali year
       </Text>
     </View>
   );
@@ -156,16 +161,16 @@ export default function NotebooksScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ledger</Text>
-        <Text style={styles.headerSubtitle}>Notebooks</Text>
+        <Text style={styles.headerTitle}>Petrol Ledger</Text>
+        <Text style={styles.headerSubtitle}>Years</Text>
       </View>
 
       <FlatList
-        data={notebooks}
+        data={notebooks.filter((notebook) => /^20\d{2}$|^2100$/.test(notebook.name))}
         keyExtractor={(item) => item.id}
         renderItem={renderNotebook}
         ListEmptyComponent={!loading ? renderEmpty : null}
-        contentContainerStyle={notebooks.length === 0 ? styles.listEmpty : styles.list}
+        contentContainerStyle={notebooks.some((notebook) => /^20\d{2}$|^2100$/.test(notebook.name)) ? styles.list : styles.listEmpty}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -194,13 +199,14 @@ export default function NotebooksScreen() {
       >
         <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>New Notebook</Text>
+            <Text style={styles.modalTitle}>New Nepali Year</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Notebook name"
+              placeholder={`e.g. ${getTodayBsDate().year}`}
               placeholderTextColor="#999"
               value={newName}
               onChangeText={setNewName}
+              keyboardType="number-pad"
               autoFocus
             />
             <View style={styles.modalActions}>
