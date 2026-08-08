@@ -1,15 +1,15 @@
-import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { Tabs } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
 
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   const icons: Record<string, string> = {
-    index: '📓',
-    explore: '📊',
+    index: "📓",
+    explore: "📊",
   };
   return (
     <View style={styles.tabIconContainer}>
       <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-        {icons[name] || '📄'}
+        {icons[name] || "📄"}
       </Text>
     </View>
   );
@@ -21,30 +21,36 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#000000',
-        tabBarInactiveTintColor: '#999999',
+        tabBarActiveTintColor: "#000000",
+        tabBarInactiveTintColor: "#999999",
         tabBarLabelStyle: styles.tabLabel,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Years',
-          tabBarIcon: ({ focused }) => <TabIcon name="index" focused={focused} />,
+          title: "Years",
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="index" focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Summary',
-          tabBarIcon: ({ focused }) => <TabIcon name="explore" focused={focused} />,
+          title: "Summary",
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="explore" focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="servicing"
         options={{
-          title: 'Servicing',
-          tabBarIcon: ({ focused }) => <TabIcon name="servicing" focused={focused} />,
+          title: "Servicing",
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="servicing" focused={focused} />
+          ),
         }}
       />
     </Tabs>
@@ -53,8 +59,8 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#FFFFFF',
-    borderTopColor: '#E5E5E5',
+    backgroundColor: "#FFFFFF",
+    borderTopColor: "#E5E5E5",
     borderTopWidth: 1,
     height: 88,
     paddingBottom: 28,
@@ -64,12 +70,12 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
     letterSpacing: 0.3,
   },
   tabIconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   tabIcon: {
     fontSize: 22,
